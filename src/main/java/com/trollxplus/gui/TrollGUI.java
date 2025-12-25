@@ -24,6 +24,7 @@ public class TrollGUI implements Listener {
     private final TrollXPlus plugin;
     private final Map<Player, Player> playerTargets = new HashMap<>();
     private final Map<Player, TrollCategory> playerCategories = new HashMap<>();
+    private final Map<Player, Integer> playerPages = new HashMap<>();
     
     public TrollGUI(TrollXPlus plugin) {
         this.plugin = plugin;
@@ -58,24 +59,48 @@ public class TrollGUI implements Listener {
     
     private void openTrollGUI(Player player, TrollCategory category) {
         playerCategories.put(player, category);
+        int page = playerPages.getOrDefault(player, 0);
         
-        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.DARK_RED + category.getDisplayName());
+        Inventory gui = Bukkit.createInventory(null, 54, ChatColor.DARK_RED + category.getDisplayName() + " (Page " + (page + 1) + ")");
         
+        // Get trolls for this category
+        TrollType[] categoryTrolls = TrollType.values();
+        int trollsPerPage = 45;
+        int startIndex = page * trollsPerPage;
         int slot = 0;
-        for (TrollType trollType : TrollType.values()) {
-            if (trollType.getCategory() == category && slot < 45) {
-                gui.setItem(slot, createTrollItem(trollType));
+        
+        for (int i = startIndex; i < categoryTrolls.length && slot < trollsPerPage; i++) {
+            if (categoryTrolls[i].getCategory() == category) {
+                gui.setItem(slot, createTrollItem(categoryTrolls[i]));
                 slot++;
             }
         }
         
-        // Fill empty slots to prevent confusion
+        // Fill empty slots
         for (int i = slot; i < 45; i++) {
             gui.setItem(i, createItem(Material.GRAY_STAINED_GLASS_PANE, " ", ""));
         }
         
-        // Navigation
+        // Navigation buttons
         gui.setItem(45, createItem(Material.ARROW, ChatColor.YELLOW + "Back to Categories", "Return to category selection"));
+        
+        // Previous page button
+        if (page > 0) {
+            gui.setItem(46, createItem(Material.PAPER, ChatColor.GREEN + "Previous Page", "Go to page " + page));
+        }
+        
+        // Next page button
+        boolean hasNextPage = false;
+        for (int i = (page + 1) * trollsPerPage; i < categoryTrolls.length; i++) {
+            if (categoryTrolls[i].getCategory() == category) {
+                hasNextPage = true;
+                break;
+            }
+        }
+        if (hasNextPage) {
+            gui.setItem(52, createItem(Material.PAPER, ChatColor.GREEN + "Next Page", "Go to page " + (page + 2)));
+        }
+        
         gui.setItem(53, createItem(Material.BARRIER, ChatColor.RED + "Close", "Click to close this menu"));
         
         player.openInventory(gui);
@@ -204,8 +229,23 @@ public class TrollGUI implements Listener {
         
         // Handle back button
         if (clicked.getType() == Material.ARROW) {
+            playerPages.remove(player);
             openCategoryGUI(player);
             return;
+        }
+        
+        // Handle pagination
+        if (clicked.getType() == Material.PAPER) {
+            String itemName = clicked.getItemMeta().getDisplayName();
+            if (itemName.contains("Next Page")) {
+                playerPages.put(player, playerPages.getOrDefault(player, 0) + 1);
+                openTrollGUI(player, playerCategories.get(player));
+                return;
+            } else if (itemName.contains("Previous Page")) {
+                playerPages.put(player, Math.max(0, playerPages.getOrDefault(player, 0) - 1));
+                openTrollGUI(player, playerCategories.get(player));
+                return;
+            }
         }
         
         // Handle category selection

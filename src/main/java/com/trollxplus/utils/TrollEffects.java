@@ -126,8 +126,13 @@ public class TrollEffects {
                     return realityBreak(target);
                 case MATRIX_MODE:
                     return matrixMode(target);
+                case FAKE_BIOS:
+                    return fakeBios(target);
+                case FAKE_ADMIN_VISIT:
+                    return fakeAdminVisit(target);
                 default:
-                    return false;
+                    // Default implementation for trolls without specific code
+                    return defaultTrollEffect(target, trollType);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Error executing troll " + trollType.name() + ": " + e.getMessage());
@@ -240,8 +245,11 @@ public class TrollEffects {
     }
     
     private boolean gravityFlip(Player target) {
-        target.setVelocity(new Vector(0, 2, 0));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 100, 1));
+        target.setVelocity(new Vector(0, 3, 0));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 200, 2));
+        target.getWorld().spawnParticle(Particle.PORTAL, target.getLocation(), 50, 1, 1, 1, 0.1);
+        target.sendMessage(ChatColor.DARK_PURPLE + "Gravity has been flipped!");
+        target.playSound(target.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
         return true;
     }
     
@@ -510,40 +518,122 @@ public class TrollEffects {
     private boolean freezePlayer(Player target) {
         target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 300, 255));
         target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 300, 200));
-        target.sendMessage(ChatColor.AQUA + "You are frozen solid!");
+        
+        // Create ice prison effect
+        Location loc = target.getLocation();
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                for (int y = 0; y <= 2; y++) {
+                    if (x != 0 || z != 0 || y != 1) {
+                        Location iceLoc = loc.clone().add(x, y, z);
+                        target.sendBlockChange(iceLoc, Material.ICE.createBlockData());
+                    }
+                }
+            }
+        }
+        
+        target.sendMessage(ChatColor.AQUA + "You are frozen in ice!");
+        target.playSound(loc, Sound.BLOCK_GLASS_BREAK, 1.0f, 0.5f);
+        
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (int x = -1; x <= 1; x++) {
+                    for (int z = -1; z <= 1; z++) {
+                        for (int y = 0; y <= 2; y++) {
+                            Location iceLoc = loc.clone().add(x, y, z);
+                            target.sendBlockChange(iceLoc, iceLoc.getBlock().getBlockData());
+                        }
+                    }
+                }
+                target.sendMessage(ChatColor.GREEN + "The ice melts away!");
+            }
+        }.runTaskLater(plugin, 300);
+        
         return true;
     }
     
     private boolean blockMirage(Player target) {
         Location loc = target.getLocation();
-        for (int i = 0; i < 10; i++) {
-            Location blockLoc = loc.clone().add(
-                random.nextInt(20) - 10, random.nextInt(5), random.nextInt(20) - 10
-            );
-            target.sendBlockChange(blockLoc, Material.DIAMOND_BLOCK.createBlockData());
-        }
+        Material[] valuableBlocks = {Material.DIAMOND_BLOCK, Material.NETHERITE_BLOCK, Material.EMERALD_BLOCK};
         
-        target.sendMessage(ChatColor.GOLD + "Diamonds everywhere!");
+        // Create expanding ring of valuable blocks
+        new BukkitRunnable() {
+            int radius = 1;
+            @Override
+            public void run() {
+                if (radius > 8) {
+                    cancel();
+                    return;
+                }
+                
+                for (int x = -radius; x <= radius; x++) {
+                    for (int z = -radius; z <= radius; z++) {
+                        if (Math.abs(x) == radius || Math.abs(z) == radius) {
+                            Location blockLoc = loc.clone().add(x, 0, z);
+                            Material block = valuableBlocks[random.nextInt(valuableBlocks.length)];
+                            target.sendBlockChange(blockLoc, block.createBlockData());
+                        }
+                    }
+                }
+                radius++;
+            }
+        }.runTaskTimer(plugin, 0, 10);
+        
+        target.sendMessage(ChatColor.GOLD + "Treasure appears around you!");
+        target.playSound(loc, Sound.BLOCK_BEACON_ACTIVATE, 1.0f, 1.5f);
         
         new BukkitRunnable() {
             @Override
             public void run() {
-                for (int i = 0; i < 10; i++) {
-                    Location blockLoc = loc.clone().add(
-                        random.nextInt(20) - 10, random.nextInt(5), random.nextInt(20) - 10
-                    );
-                    target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
+                for (int x = -8; x <= 8; x++) {
+                    for (int z = -8; z <= 8; z++) {
+                        Location blockLoc = loc.clone().add(x, 0, z);
+                        target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
+                    }
                 }
-                target.sendMessage(ChatColor.RED + "The diamonds were fake!");
+                target.sendMessage(ChatColor.RED + "It was all a mirage!");
+                target.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 0.5f, 2.0f);
             }
-        }.runTaskLater(plugin, 600);
+        }.runTaskLater(plugin, 200);
         
         return true;
     }
     
     private boolean upsideDown(Player target) {
-        target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 400, 3));
-        target.sendTitle(ChatColor.DARK_PURPLE + "UPSIDE DOWN", ChatColor.GRAY + "The world has flipped!", 10, 60, 10);
+        target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 400, 5));
+        
+        // Flip blocks above and below player
+        Location loc = target.getLocation();
+        for (int x = -3; x <= 3; x++) {
+            for (int z = -3; z <= 3; z++) {
+                Location topLoc = loc.clone().add(x, 3, z);
+                Location bottomLoc = loc.clone().add(x, -3, z);
+                
+                // Swap the appearance of top and bottom blocks
+                target.sendBlockChange(topLoc, bottomLoc.getBlock().getBlockData());
+                target.sendBlockChange(bottomLoc, topLoc.getBlock().getBlockData());
+            }
+        }
+        
+        target.sendTitle(ChatColor.DARK_PURPLE + "˙ʇɥƃᴉɹ ǝpᴉsdn", ChatColor.GRAY + "Everything is flipped!", 10, 80, 10);
+        target.playSound(loc, Sound.ENTITY_ENDERMAN_SCREAM, 1.0f, 0.1f);
+        
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (int x = -3; x <= 3; x++) {
+                    for (int z = -3; z <= 3; z++) {
+                        Location topLoc = loc.clone().add(x, 3, z);
+                        Location bottomLoc = loc.clone().add(x, -3, z);
+                        target.sendBlockChange(topLoc, topLoc.getBlock().getBlockData());
+                        target.sendBlockChange(bottomLoc, bottomLoc.getBlock().getBlockData());
+                    }
+                }
+                target.sendMessage(ChatColor.GREEN + "Reality has been restored!");
+            }
+        }.runTaskLater(plugin, 400);
+        
         return true;
     }
     
@@ -659,19 +749,22 @@ public class TrollEffects {
     }
     
     private boolean gravityReverse(Player target) {
+        // Give fall damage immunity
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 400, 0));
+        
         new BukkitRunnable() {
             int count = 0;
             
             @Override
             public void run() {
-                if (count++ >= 10) { // Reduced from 15 to 10
+                if (count++ >= 15) {
                     cancel();
                     return;
                 }
                 
-                target.setVelocity(new Vector(0, 0.3, 0)); // Reduced from 0.8 to 0.3
+                target.setVelocity(new Vector(0, 1.5, 0)); // Increased from 0.3 to 1.5
             }
-        }.runTaskTimer(plugin, 0, 20); // Increased delay from 10 to 20
+        }.runTaskTimer(plugin, 0, 15);
         
         target.sendMessage(ChatColor.LIGHT_PURPLE + "Gravity has reversed!");
         return true;
@@ -729,57 +822,100 @@ public class TrollEffects {
     }
     
     private boolean spiderClimb(Player target) {
-        target.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 200, 0));
+        // Give fall damage immunity
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 400, 0));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 300, 2)); // Increased from 0 to 2
         target.sendMessage(ChatColor.GREEN + "You can now climb walls like a spider!");
         return true;
     }
     
     private boolean drunkWalk(Player target) {
+        target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 300, 3));
+        
+        // Create spinning particle effect
         new BukkitRunnable() {
+            double angle = 0;
             int count = 0;
             @Override
             public void run() {
-                if (count++ >= 15) {
+                if (count++ >= 30) {
                     cancel();
                     return;
                 }
+                
+                Location loc = target.getLocation();
+                for (int i = 0; i < 3; i++) {
+                    double x = Math.cos(angle + i * Math.PI * 2 / 3) * 2;
+                    double z = Math.sin(angle + i * Math.PI * 2 / 3) * 2;
+                    loc.add(x, 1, z);
+                    target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 1);
+                    loc.subtract(x, 1, z);
+                }
+                
                 Vector randomVel = new Vector(
-                    (random.nextDouble() - 0.5) * 0.2,
+                    (random.nextDouble() - 0.5) * 0.3,
                     0,
-                    (random.nextDouble() - 0.5) * 0.2
+                    (random.nextDouble() - 0.5) * 0.3
                 );
                 target.setVelocity(randomVel);
+                angle += 0.3;
             }
-        }.runTaskTimer(plugin, 0, 15);
+        }.runTaskTimer(plugin, 0, 10);
         
-        target.sendMessage(ChatColor.YELLOW + "You feel dizzy and can't walk straight!");
+        target.sendMessage(ChatColor.YELLOW + "*hic* You feel very dizzy! *hic*");
+        target.playSound(target.getLocation(), Sound.ENTITY_PLAYER_BURP, 1.0f, 0.8f);
         return true;
     }
     
     private boolean rainbowWorld(Player target) {
         Location loc = target.getLocation();
         Material[] colors = {Material.RED_WOOL, Material.ORANGE_WOOL, Material.YELLOW_WOOL, 
-                           Material.LIME_WOOL, Material.BLUE_WOOL, Material.PURPLE_WOOL};
+                           Material.LIME_WOOL, Material.BLUE_WOOL, Material.PURPLE_WOOL, Material.PINK_WOOL};
         
-        Location[] blockLocs = new Location[20];
-        for (int i = 0; i < 20; i++) {
-            blockLocs[i] = loc.clone().add(
-                random.nextInt(10) - 5, random.nextInt(3), random.nextInt(10) - 5
-            );
-            Material color = colors[random.nextInt(colors.length)];
-            target.sendBlockChange(blockLocs[i], color.createBlockData());
-        }
+        // Create expanding rainbow rings
+        new BukkitRunnable() {
+            int radius = 1;
+            int colorIndex = 0;
+            @Override
+            public void run() {
+                if (radius > 6) {
+                    cancel();
+                    return;
+                }
+                
+                Material color = colors[colorIndex % colors.length];
+                
+                // Create ring of blocks
+                for (double angle = 0; angle < Math.PI * 2; angle += 0.3) {
+                    int x = (int) (Math.cos(angle) * radius);
+                    int z = (int) (Math.sin(angle) * radius);
+                    Location blockLoc = loc.clone().add(x, 0, z);
+                    target.sendBlockChange(blockLoc, color.createBlockData());
+                    
+                    // Add particles
+                    target.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, blockLoc.clone().add(0, 1, 0), 2);
+                }
+                
+                radius++;
+                colorIndex++;
+            }
+        }.runTaskTimer(plugin, 0, 15);
         
-        target.sendMessage(ChatColor.LIGHT_PURPLE + "The world becomes colorful!");
+        target.sendMessage(ChatColor.LIGHT_PURPLE + "🌈 Rainbow magic surrounds you! 🌈");
+        target.playSound(loc, Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 2.0f);
         
         new BukkitRunnable() {
             @Override
             public void run() {
-                for (Location blockLoc : blockLocs) {
-                    target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
+                for (int x = -6; x <= 6; x++) {
+                    for (int z = -6; z <= 6; z++) {
+                        Location blockLoc = loc.clone().add(x, 0, z);
+                        target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
+                    }
                 }
+                target.sendMessage(ChatColor.GRAY + "The rainbow fades away...");
             }
-        }.runTaskLater(plugin, 600);
+        }.runTaskLater(plugin, 400);
         
         return true;
     }
@@ -1001,18 +1137,14 @@ public class TrollEffects {
         Material[] blocks = {Material.DIAMOND_BLOCK, Material.GOLD_BLOCK, Material.EMERALD_BLOCK, 
                            Material.IRON_BLOCK, Material.REDSTONE_BLOCK};
         
+        // Store changed block locations for restoration
+        java.util.Set<Location> changedBlocks = new java.util.HashSet<>();
+        
         new BukkitRunnable() {
             int count = 0;
             @Override
             public void run() {
                 if (count++ >= 20) {
-                    // Restore original blocks
-                    for (int i = 0; i < 5; i++) {
-                        Location blockLoc = loc.clone().add(
-                            random.nextInt(8) - 4, random.nextInt(4), random.nextInt(8) - 4
-                        );
-                        target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
-                    }
                     cancel();
                     return;
                 }
@@ -1023,9 +1155,21 @@ public class TrollEffects {
                     );
                     Material block = blocks[random.nextInt(blocks.length)];
                     target.sendBlockChange(blockLoc, block.createBlockData());
+                    changedBlocks.add(blockLoc.clone());
                 }
             }
         }.runTaskTimer(plugin, 0, 10);
+        
+        // Restore all changed blocks after effect ends
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Location blockLoc : changedBlocks) {
+                    target.sendBlockChange(blockLoc, blockLoc.getBlock().getBlockData());
+                }
+                target.sendMessage(ChatColor.GREEN + "Block party ended!");
+            }
+        }.runTaskLater(plugin, 220); // 11 seconds (20 cycles * 10 ticks + buffer)
         
         target.sendMessage(ChatColor.LIGHT_PURPLE + "Block party time!");
         return true;
@@ -1049,27 +1193,172 @@ public class TrollEffects {
     }
     
     private boolean matrixMode(Player target) {
-        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 400, 2));
-        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 400, 3));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 400, 1));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 400, 4));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 400, 1));
         
         Location loc = target.getLocation();
+        
+        // Create matrix rain effect
         new BukkitRunnable() {
             int count = 0;
             @Override
             public void run() {
-                if (count++ >= 20) {
+                if (count++ >= 40) {
                     cancel();
                     return;
                 }
                 
-                Particle particle = VersionUtils.getCompatibleParticle("DRIPPING_WATER", "DRIP_WATER");
-                target.getWorld().spawnParticle(particle, 
-                    loc.clone().add(random.nextInt(10) - 5, random.nextInt(5) + 5, random.nextInt(10) - 5),
-                    1, 0, 0, 0, 0);
+                // Spawn green particles falling down
+                for (int i = 0; i < 15; i++) {
+                    Location particleLoc = loc.clone().add(
+                        random.nextInt(20) - 10, 
+                        random.nextInt(10) + 10, 
+                        random.nextInt(20) - 10
+                    );
+                    
+                    Particle particle = VersionUtils.getCompatibleParticle("HAPPY_VILLAGER", "VILLAGER_HAPPY");
+                    target.getWorld().spawnParticle(particle, particleLoc, 1, 0, -1, 0, 0.1);
+                }
+                
+                // Occasional glitch effect
+                if (count % 8 == 0) {
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 5, 1));
+                    target.playSound(loc, Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.5f);
+                }
             }
         }.runTaskTimer(plugin, 0, 5);
         
-        target.sendMessage(ChatColor.GREEN + "Welcome to the Matrix!");
+        target.sendTitle(ChatColor.GREEN + "MATRIX MODE", ChatColor.DARK_GREEN + "Welcome to the real world", 10, 60, 10);
+        target.sendMessage(ChatColor.GREEN + "You can see the code...");
+        target.playSound(loc, Sound.BLOCK_PORTAL_AMBIENT, 1.0f, 0.1f);
+        
+        return true;
+    }
+    
+    private boolean fakeBios(Player target) {
+        // Store original game mode and location
+        GameMode originalMode = target.getGameMode();
+        Location originalLoc = target.getLocation().clone();
+        
+        // Teleport player 3 blocks down
+        Location newLoc = originalLoc.clone().add(0, -3, 0);
+        target.teleport(newLoc);
+        
+        // Create BIOS screen 3 blocks higher than player's new position
+        Location biosLoc = newLoc.clone().add(0, 5, -3);
+        
+        // Create item frames in a grid pattern to simulate BIOS screen
+        for (int x = -2; x <= 2; x++) {
+            for (int y = 0; y <= 3; y++) {
+                Location frameLoc = biosLoc.clone().add(x, y, 0);
+                
+                // Send fake item frame blocks
+                target.sendBlockChange(frameLoc, Material.BLACK_CONCRETE.createBlockData());
+                
+                // Add some "text" using different colored blocks
+                if (y == 3 && x == 0) {
+                    target.sendBlockChange(frameLoc, Material.WHITE_CONCRETE.createBlockData());
+                } else if (y == 2) {
+                    target.sendBlockChange(frameLoc, Material.GRAY_CONCRETE.createBlockData());
+                } else if (y == 1 && Math.abs(x) <= 1) {
+                    target.sendBlockChange(frameLoc, Material.BLUE_CONCRETE.createBlockData());
+                }
+            }
+        }
+        
+        // Show BIOS messages but don't freeze player
+        target.sendTitle(ChatColor.WHITE + "BIOS", ChatColor.GRAY + "System Starting...", 10, 80, 10);
+        target.playSound(target.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 0.5f);
+        
+        // Restore everything after 5 seconds
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                // Restore position
+                target.teleport(originalLoc);
+                
+                // Remove fake BIOS screen
+                for (int x = -2; x <= 2; x++) {
+                    for (int y = 0; y <= 3; y++) {
+                        Location frameLoc = biosLoc.clone().add(x, y, 0);
+                        target.sendBlockChange(frameLoc, frameLoc.getBlock().getBlockData());
+                    }
+                }
+                
+                target.sendTitle(ChatColor.GREEN + "SYSTEM READY", ChatColor.YELLOW + "Welcome back!", 10, 40, 10);
+                target.sendMessage(ChatColor.GREEN + "System boot complete!");
+            }
+        }.runTaskLater(plugin, 100); // 5 seconds
+        
+        return true;
+    }
+    
+    private boolean fakeAdminVisit(Player target) {
+        Location spawnLoc = target.getLocation().clone().add(3, 0, 0);
+        
+        // Spawn fake admin NPC
+        plugin.getNPCManager().spawnFakeAdmin(target, spawnLoc);
+        
+        // Send fake admin messages
+        target.sendMessage("§c[ADMIN] TrollBot joined the game");
+        target.sendMessage("§c[ADMIN] TrollBot: Checking player " + target.getName());
+        
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                target.sendMessage("§c[ADMIN] TrollBot: Everything looks good!");
+            }
+        }.runTaskLater(plugin, 60);
+        
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                target.sendMessage("§c[ADMIN] TrollBot left the game");
+            }
+        }.runTaskLater(plugin, 100);
+        
+        return true;
+    }
+    
+    private boolean defaultTrollEffect(Player target, TrollType trollType) {
+        switch (trollType.getCategory()) {
+            case MOVEMENT:
+                target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 100, 1));
+                target.sendMessage(ChatColor.YELLOW + "You feel strange!");
+                break;
+            case VISUAL:
+                target.getWorld().spawnParticle(Particle.SMOKE, target.getLocation(), 10);
+                target.sendMessage(ChatColor.LIGHT_PURPLE + "Reality shifts around you!");
+                break;
+            case TELEPORT:
+                Location loc = target.getLocation().clone().add(random.nextInt(10) - 5, 0, random.nextInt(10) - 5);
+                target.teleport(loc);
+                target.sendMessage(ChatColor.AQUA + "You've been moved!");
+                break;
+            case INVENTORY:
+                target.getInventory().addItem(new ItemStack(Material.DIRT, 1));
+                target.sendMessage(ChatColor.GOLD + "Your inventory feels different!");
+                break;
+            case FAKE:
+                target.sendMessage(ChatColor.RED + "[SYSTEM] " + trollType.getDisplayName() + " activated!");
+                new BukkitRunnable() {
+                    @Override
+                    public void run() {
+                        target.sendMessage(ChatColor.GREEN + "[SYSTEM] Just kidding!");
+                    }
+                }.runTaskLater(plugin, 60);
+                break;
+            case CHAOS:
+                target.playSound(target.getLocation(), Sound.ENTITY_CHICKEN_AMBIENT, 1.0f, 1.0f);
+                target.getWorld().spawnParticle(Particle.EXPLOSION, target.getLocation(), 3);
+                target.sendMessage(ChatColor.DARK_RED + "Chaos surrounds you!");
+                break;
+            case EXTREME:
+                target.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 200, 3));
+                target.sendTitle(ChatColor.DARK_RED + "SYSTEM ERROR", ChatColor.RED + trollType.getDisplayName(), 10, 40, 10);
+                break;
+        }
         return true;
     }
 }

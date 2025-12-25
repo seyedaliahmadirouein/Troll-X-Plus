@@ -5,6 +5,7 @@ import com.trollxplus.commands.TrollAdminCommand;
 import com.trollxplus.gui.TrollGUI;
 import com.trollxplus.managers.TrollManager;
 import com.trollxplus.managers.ConfigManager;
+import com.trollxplus.npcs.TrollNPCManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class TrollXPlus extends JavaPlugin {
@@ -13,6 +14,7 @@ public class TrollXPlus extends JavaPlugin {
     private TrollManager trollManager;
     private ConfigManager configManager;
     private TrollGUI trollGUI;
+    private TrollNPCManager npcManager;
     
     @Override
     public void onEnable() {
@@ -22,6 +24,7 @@ public class TrollXPlus extends JavaPlugin {
         configManager = new ConfigManager(this);
         trollManager = new TrollManager(this);
         trollGUI = new TrollGUI(this);
+        npcManager = new TrollNPCManager(this);
         
         // Register commands
         getCommand("troll").setExecutor(new TrollCommand(this));
@@ -56,5 +59,9 @@ public class TrollXPlus extends JavaPlugin {
     
     public TrollGUI getTrollGUI() {
         return trollGUI;
+    }
+    
+    public TrollNPCManager getNPCManager() {
+        return npcManager;
     }
 }
