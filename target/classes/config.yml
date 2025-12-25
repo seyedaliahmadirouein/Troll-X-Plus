@@ -1,0 +1,158 @@
+# TrollXPlus Configuration File
+# Advanced Minecraft Troll Plugin with GUI
+
+# Plugin Settings
+plugin:
+  enabled: true
+  version: "1.0.0"
+  debug: false
+
+# Cooldown Settings (in seconds)
+cooldown:
+  global: 5
+  per-troll: 10
+  bypass-permission: "trollxplus.bypass.cooldown"
+  vip-reduction: 50  # VIP players get 50% cooldown reduction
+
+# Effect Settings
+effects:
+  duration-multiplier: 1.0
+  intensity-multiplier: 1.0
+  max-concurrent-per-player: 3
+  allow-self-troll: true
+  
+# GUI Settings
+gui:
+  title: "&4TrollXPlus - Select Troll"
+  category-title: "&4TrollXPlus - Categories"
+  sound-effects: true
+  close-on-troll: false
+  animation-speed: 2
+  
+# Logging Settings
+logging:
+  enabled: true
+  log-file: "trolls.log"
+  console-output: true
+  log-level: "INFO"  # DEBUG, INFO, WARN, ERROR
+  
+# World Settings
+worlds:
+  enabled-worlds:
+    - "world"
+    - "world_nether"
+    - "world_the_end"
+  disabled-worlds: []
+  
+# Troll Categories Configuration
+categories:
+  movement:
+    enabled: true
+    icon: "LEATHER_BOOTS"
+    name: "&bMovement Effects"
+  visual:
+    enabled: true
+    icon: "ENDER_EYE"
+    name: "&eVisual Effects"
+  teleport:
+    enabled: true
+    icon: "ENDER_PEARL"
+    name: "&dTeleportation"
+  inventory:
+    enabled: true
+    icon: "CHEST"
+    name: "&6Inventory Trolls"
+  fake:
+    enabled: true
+    icon: "COMMAND_BLOCK"
+    name: "&cFake Messages"
+  chaos:
+    enabled: true
+    icon: "NETHER_STAR"
+    name: "&5Chaos & Fun"
+  extreme:
+    enabled: true
+    icon: "TNT"
+    name: "&4Extreme Trolls"
+
+# Individual Troll Settings
+trolls:
+  reverse-controls:
+    enabled: true
+    duration: 10
+    intensity: 2
+    cooldown: 15
+    permission: "trollxplus.troll.reverse"
+    cost: 0
+  jump-boost:
+    enabled: true
+    duration: 12
+    intensity: 5
+    cooldown: 10
+    permission: "trollxplus.troll.jump"
+    cost: 0
+  fake-op:
+    enabled: true
+    duration: 5
+    reveal-delay: 3
+    permission: "trollxplus.troll.fakeop"
+    cost: 10
+  fake-ban:
+    enabled: true
+    duration: 8
+    reveal-delay: 4
+    permission: "trollxplus.troll.fakeban"
+    cost: 15
+  server-crash:
+    enabled: true
+    duration: 10
+    fake-countdown: 5
+    permission: "trollxplus.troll.crash"
+    cost: 20
+  gravity-reverse:
+    enabled: true
+    duration: 15
+    strength: 2.0
+    permission: "trollxplus.troll.gravity"
+    cost: 25
+  block-mirage:
+    enabled: true
+    duration: 30
+    block-count: 10
+    permission: "trollxplus.troll.mirage"
+    cost: 5
+  fake-hacker:
+    enabled: true
+    duration: 20
+    message-count: 5
+    permission: "trollxplus.troll.hacker"
+    cost: 15
+
+# Economy Integration
+economy:
+  enabled: false
+  currency-name: "TrollCoins"
+  starting-balance: 100
+  earn-per-troll: 5
+  
+# Messages (Supports color codes)
+messages:
+  no-permission: "&cYou don't have permission to use this command!"
+  plugin-disabled: "&cTrollXPlus is currently disabled!"
+  player-not-found: "&cPlayer not found!"
+  cooldown: "&cCooldown: {time} seconds remaining!"
+  troll-activated: "&aTroll activated on {player}!"
+  troll-failed: "&cFailed to activate troll!"
+  immune-player: "&c{player} is immune to trolls!"
+  insufficient-funds: "&cYou need {cost} {currency} to use this troll!"
+  world-disabled: "&cTrolls are disabled in this world!"
+  self-troll-disabled: "&cYou cannot troll yourself!"
+  target-offline: "&cTarget player is offline!"
+  
+# Advanced Settings
+advanced:
+  async-processing: true
+  cache-size: 1000
+  cleanup-interval: 300  # seconds
+  max-particles: 100
+  particle-range: 50
